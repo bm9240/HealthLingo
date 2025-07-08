@@ -1,14 +1,34 @@
+// App.jsx
 import React from "react";
+import { BrowserRouter as Router, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
+import Register from "./components/Register";
+import Login from "./components/Login";
 
-const App = () => {
+
+const AppRoutes = () => {
+  const location = useLocation();
+  const hideNavbar = location.pathname === "/login" || location.pathname === "/register";
+
   return (
     <>
-      <Navbar />
-      
-      
+      {!hideNavbar && <Navbar />}
+
+      <Routes>
+        
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
     </>
   );
 };
 
-export default App;
+const App = () => {
+  return (
+    <Router>
+      <AppRoutes />
+    </Router>
+  );
+};
+
+export default App; 
