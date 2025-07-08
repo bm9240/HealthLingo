@@ -1,4 +1,5 @@
 import React from "react";
+import { Link } from "react-router-dom"; // ✅ Import Link
 
 const Navbar = () => {
   return (
@@ -16,13 +17,17 @@ const Navbar = () => {
           </div>
 
           <div className="flex space-x-4 items-center">
-            {/* 👇 Buttons without Link or routing */}
-            <button className="bg-white text-blue-700 font-semibold px-4 py-2 rounded-lg border border-blue-700">
-              Register
-            </button>
-            <button className="bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg">
-              Login
-            </button>
+            {/* ✅ Use Link instead of button */}
+            <Link to="/register">
+              <button className="bg-white text-blue-700 font-semibold px-4 py-2 rounded-lg border border-blue-700">
+                Register
+              </button>
+            </Link>
+            <Link to="/login">
+              <button className="bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg">
+                Login
+              </button>
+            </Link>
           </div>
         </div>
       </div>
@@ -30,4 +35,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default Navbar; 
