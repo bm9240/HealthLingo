@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from "react-route
 import Navbar from "./components/Navbar";
 import Register from "./components/Register";
 import Login from "./components/Login";
+import AboutUs from "./components/AboutUs";
+import Home from "./components/Home";
 
 
 const AppRoutes = () => {
@@ -15,9 +17,10 @@ const AppRoutes = () => {
       {!hideNavbar && <Navbar />}
 
       <Routes>
-        
+        <Route path="/" element={<Home />} />
         <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
+         <Route path="/about" element={<AboutUs />} />
       </Routes>
     </>
   );

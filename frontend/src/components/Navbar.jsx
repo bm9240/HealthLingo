@@ -11,8 +11,8 @@ const Navbar = () => {
           </div>
 
           <div className="flex space-x-8 items-center">
-            <a href="#" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Home</a>
-            <a href="#" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">About Us</a>
+            <a href="/" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Home</a>
+            <a href="/about" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">About Us</a>
             <a href="#" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Resources</a>
           </div>
 
