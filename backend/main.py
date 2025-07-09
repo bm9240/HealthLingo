@@ -1,146 +1,84 @@
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import JSONResponse
 import shutil
 import os
 import cv2
-import pandas as pd
-import re
 import pytesseract
-from rapidfuzz import fuzz
+import subprocess
+import json
+from pydantic import BaseModel
 
+from ai_explainer import generate_explanation  # 💡 Your explanation generator
+
+# ---------------------- FastAPI Setup ---------------------- #
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development; restrict in production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.get("/")
 def root():
     return {"message": "Backend is running"}
 
-
-# Paths
+# ---------------------- Config ---------------------- #
 UPLOAD_DIR = "uploads"
-LOINC_PATH = "data/loinc.csv"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-# Tesseract path (adjust if needed)
-pytesseract.pytesseract.tesseract_cmd = r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+# Set your Tesseract path (Windows)
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 
-# ---------------------------- Utils ----------------------------
-
+# ---------------------- Image Preprocessing ---------------------- #
 def preprocess_image(image_path):
     img = cv2.imread(image_path)
     if img is None:
         raise FileNotFoundError("Image not found.")
     img = cv2.resize(img, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    adaptive_thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-                                            cv2.THRESH_BINARY_INV, 35, 11)
-    morph = cv2.morphologyEx(adaptive_thresh, cv2.MORPH_CLOSE,
+    thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                   cv2.THRESH_BINARY_INV, 35, 11)
+    morph = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE,
                              cv2.getStructuringElement(cv2.MORPH_RECT, (2, 2)))
-    final = cv2.bitwise_not(morph)
-    return final
+    return cv2.bitwise_not(morph)
 
-def clean_line(line):
-    replacements = {'me/dL': 'mg/dL', '4./': '4.7', 'l.': '1.', '|': 'I', 'O': '0'}
-    line = line.strip()
-    for wrong, right in replacements.items():
-        line = line.replace(wrong, right)
-    return re.sub(r'[^\x00-\x7F]+', '', line)
-
-def is_junk_line(line):
-    junk_keywords = ["method", "note", "dr", "interpretation", "date", "sample", "electrode", "arsenazo", "report", "unit"]
-    return any(kw in line.lower() for kw in junk_keywords)
-
-def get_status(result, ref_range):
-    try:
-        result_val = float(result)
-        low, high = map(float, re.findall(r"[\d.]+", ref_range))
-        if result_val < low:
-            return "Low"
-        elif result_val > high:
-            return "High"
-        else:
-            return "Normal"
-    except:
-        return "Unknown"
-
-def load_loinc(path):
-    return pd.read_csv(path, dtype=str)
-
-def match_loinc_name(test_name, loinc_df):
-    best_score = 0
-    best_match = ""
-    for name in loinc_df["LONG_COMMON_NAME"].dropna():
-        score = fuzz.partial_ratio(test_name.lower(), name.lower())
-        if score > best_score:
-            best_score = score
-            best_match = name
-    return best_match if best_score > 70 else ""
-
+# ---------------------- OCR ---------------------- #
 def extract_text(image_path):
     processed_img = preprocess_image(image_path)
     config = r'--oem 3 --psm 6'
     return pytesseract.image_to_string(processed_img, config=config)
 
-def process_report(image_path, loinc_path):
-    text = extract_text(image_path)
-    loinc_df = load_loinc(loinc_path)
-    lines = [clean_line(l) for l in text.split("\n") if l.strip()]
-    results = []
-    i = 0
+# ---------------------- Mistral Analysis ---------------------- #
+def process_with_mistral(ocr_text):
+    prompt = f"""Extract all medical tests and their values from the text below.
+Return them in JSON list format. Each item must include the following keys:
+"Test", "Result", "Unit", "Reference Range", "Status".
 
-    while i < len(lines):
-        line = lines[i]
-        if is_junk_line(line):
-            i += 1
-            continue
+TEXT:
+{ocr_text}
+"""
 
-        next_line = lines[i + 1] if i + 1 < len(lines) else ""
-        combined = f"{line} {next_line}".strip()
+    result = subprocess.run(
+        [r"C:\Users\Anishka\AppData\Local\Programs\Ollama\ollama.exe", "run", "mistral"],
+        input=prompt.encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=240  # Increase if needed
+    )
 
-        match = re.match(r'^(.+?)\s+([\d.]+)\s+([\d.]+)\s*-\s*([\d.]+)\s*([a-zA-Z/%²µμmLdL]*)$', combined)
-        if match:
-            test = match.group(1).strip()
-            result = match.group(2)
-            ref_range = f"{match.group(3)} - {match.group(4)}"
-            unit = match.group(5)
-            status = get_status(result, ref_range)
-            loinc_name = match_loinc_name(test, loinc_df)
-            description = f"This test '{loinc_name or test}' is used to monitor your health and assess conditions based on lab values." if loinc_name else ""
-            results.append({
-                "Test": test,
-                "Result": result,
-                "Reference Range": ref_range,
-                "Unit": unit,
-                "Status": status,
-                "LOINC Name": loinc_name,
-                "Description": description
-            })
-            i += 2
-            continue
+    try:
+        output = result.stdout.decode().strip()
+        # If Mistral returns a code block like ```json\n...\n``` remove it
+        if "```json" in output:
+            output = output.split("```json")[1].split("```")[0].strip()
+        return json.loads(output)
+    except Exception as e:
+        return [{"error": "AI parsing failed", "details": str(e), "raw_output": output}]
 
-        match = re.match(r'^(.+?)\s+([\d.]+)$', combined)
-        if match:
-            test = match.group(1).strip()
-            result = match.group(2)
-            loinc_name = match_loinc_name(test, loinc_df)
-            description = f"This test '{loinc_name or test}' is used to monitor your health and assess conditions based on lab values." if loinc_name else ""
-            results.append({
-                "Test": test,
-                "Result": result,
-                "Reference Range": "",
-                "Unit": "",
-                "Status": "Unknown",
-                "LOINC Name": loinc_name,
-                "Description": description
-            })
-            i += 2
-            continue
-
-        i += 1
-
-    return results
-
-# ---------------------------- API Endpoint ----------------------------
-
+# ---------------------- Upload API ---------------------- #
 @app.post("/upload/")
 async def upload_image(file: UploadFile = File(...)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
@@ -148,8 +86,51 @@ async def upload_image(file: UploadFile = File(...)):
         shutil.copyfileobj(file.file, buffer)
 
     try:
-        results = process_report(file_path, LOINC_PATH)
-        return JSONResponse(content={"results": results})
+        # Step 1: OCR
+        ocr_text = extract_text(file_path)
+
+        # Step 2: Ask Mistral to extract medical data
+        extracted = process_with_mistral(ocr_text)
+
+        # Step 3: Generate explanations for each test
+        for item in extracted:
+            if "Test" in item and "Result" in item and "Status" in item:
+                item["Explanation"] = generate_explanation(
+                    item["Test"], item["Result"], item["Status"]
+                )
+
+        return JSONResponse(content={"results": extracted})
+
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
+class FollowUpRequest(BaseModel):
+    query: str
+    context: str
 
+@app.post("/follow-up")
+async def follow_up(req: FollowUpRequest):
+    query = req.query
+    context = req.context
+
+    prompt = f"""You are a helpful medical assistant.
+Use the following extracted medical test data to answer the user's question.
+
+Medical Test Data (in JSON): {context}
+
+User's Question: {query}
+
+Answer in clear and simple language:
+"""
+
+    result = subprocess.run(
+        [r"C:\Users\Anishka\AppData\Local\Programs\Ollama\ollama.exe", "run", "mistral"],
+        input=prompt.encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+
+    try:
+        answer = result.stdout.decode().strip()
+        return {"explanation": answer}
+    except Exception as e:
+        return {"explanation": "AI error: " + str(e)}
