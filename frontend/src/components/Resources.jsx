@@ -33,8 +33,8 @@ const resources = [
 
 function Resources() {
   return (
-    <div className="w-screen h-xl flex items-center justify-center bg-white">
-      <div className="bg-gradient-to-br from-blue-100 via-white to-blue-300 backdrop-blur-md bg-white/80 border border-blue-200 shadow-2xl rounded-3xl p-6 max-w-6xl w-full h-xl">
+    <div className="w-screen min-h-screen pt-20 overflow-y-auto flex items-start justify-center bg-white">
+      <div className="bg-gradient-to-br from-blue-100 via-white to-blue-300 backdrop-blur-md bg-white/80 border border-blue-200 shadow-2xl rounded-3xl p-6 max-w-6xl w-full">
         {/* Header Section */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-r from-blue-600 to-green-600 rounded-full mb-4 shadow">

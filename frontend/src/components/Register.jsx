@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; // ✅ Added useNavigate
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const Register = () => {
-  const navigate = useNavigate(); // ✅ Initialize navigate
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
     name: "",
@@ -28,14 +28,14 @@ const Register = () => {
     try {
       const res = await axios.post("http://localhost:8000/register", formData);
       alert(res.data.message);
-      navigate("/login"); // ✅ Redirect to login page
+      navigate("/login");
     } catch (err) {
       alert(err.response?.data?.detail || "Registration failed");
     }
   };
 
   return (
-    <div className="w-screen h-screen flex flex-col md:flex-row bg-white overflow-hidden font-sans">
+    <div className="w-screen min-h-screen flex flex-col md:flex-row bg-white font-sans overflow-auto pt-8 md:pt-0">
       {/* Left Panel */}
       <div className="w-full md:w-1/2 bg-gradient-to-bl from-blue-300 via-white to-blue-500 text-blue-900 flex flex-col justify-center items-center px-6 md:px-10 py-12 md:py-0 custom-rounded-panel">
         <h2 className="text-5xl font-extrabold mb-3 tracking-wide drop-shadow-lg">
