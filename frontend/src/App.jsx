@@ -8,7 +8,7 @@ import Home from "./components/Home";
 import Dashboard from "./components/Dashboard";
 import UploadReport from "./components/UploadReport"; // ✅ new
 import UploadPrescription from "./components/UploadPrescription"; // ✅ new
-
+import Resources from "./components/Resources"; // ✅ new
 const AppRoutes = () => {
   const location = useLocation();
   const hideNavbar = location.pathname === "/login" || location.pathname === "/register";
@@ -22,6 +22,7 @@ const AppRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/about" element={<AboutUs />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/resources" element={<Resources />} /> {/* ✅ new route */}
         <Route path="/upload-report" element={<UploadReport />} />           {/* ✅ new route */}
         <Route path="/upload-prescription" element={<UploadPrescription />} /> {/* ✅ new route */}
       </Routes>

@@ -29,7 +29,7 @@ const Navbar = () => {
           <div className="flex space-x-8 items-center">
             <Link to="/" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Home</Link>
             <Link to="/about" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">About Us</Link>
-            <a href="#" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Resources</a>
+            <a href="/resources" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Resources</a>
             {isLoggedIn && (
               <Link to="/dashboard" className="text-blue-700 px-3 py-2 rounded-md text-lg font-semibold">Dashboard</Link>
             )}
