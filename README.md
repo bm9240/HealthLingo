@@ -1,4 +1,4 @@
-# HealthLingo
+
 # HealthLingo 🏥
 
 *Transform Complex Medical Documents into Simple Language*
