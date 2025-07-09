@@ -1,5 +1,5 @@
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File,  HTTPException
 from fastapi.responses import JSONResponse
 import shutil
 import os
@@ -8,6 +8,8 @@ import pytesseract
 import subprocess
 import json
 from pydantic import BaseModel
+from routes import auth
+
 
 from ai_explainer import generate_explanation  # 💡 Your explanation generator
 
@@ -15,11 +17,14 @@ from ai_explainer import generate_explanation  # 💡 Your explanation generator
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for development; restrict in production
+    allow_origins=["http://localhost:5173"],   # Allow all origins for development; restrict in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth.router)
+
 
 @app.get("/")
 def root():
@@ -134,3 +139,4 @@ Answer in clear and simple language:
         return {"explanation": answer}
     except Exception as e:
         return {"explanation": "AI error: " + str(e)}
+    
