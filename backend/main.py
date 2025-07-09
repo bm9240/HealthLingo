@@ -9,6 +9,8 @@ import subprocess
 import json
 from pydantic import BaseModel
 from routes import auth
+from pres_exp import explain_prescription_medicine
+
 
 
 from ai_explainer import generate_explanation  # 💡 Your explanation generator
@@ -67,7 +69,7 @@ TEXT:
 """
 
     result = subprocess.run(
-        [r"C:\Users\Anishka\AppData\Local\Programs\Ollama\ollama.exe", "run", "mistral"],
+        ["ollama", "run", "mistral"],
         input=prompt.encode(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -128,7 +130,7 @@ Answer in clear and simple language:
 """
 
     result = subprocess.run(
-        [r"C:\Users\Anishka\AppData\Local\Programs\Ollama\ollama.exe", "run", "mistral"],
+        ["ollama", "run", "mistral"],
         input=prompt.encode(),
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -140,3 +142,52 @@ Answer in clear and simple language:
     except Exception as e:
         return {"explanation": "AI error: " + str(e)}
     
+@app.post("/upload-prescription/")
+async def upload_prescription(file: UploadFile = File(...)):
+    file_path = os.path.join(UPLOAD_DIR, file.filename)
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    try:
+        # OCR: Extract text from the prescription image
+        ocr_text = extract_text(file_path)
+
+        # Mistral: Extract medicine info from OCR text
+        extracted = process_prescription_with_mistral(ocr_text)
+
+        # Explanation: Generate simple explanation per medicine
+        for item in extracted:
+            if "Medicine" in item:
+                item["Explanation"] = explain_prescription_medicine(item["Medicine"])
+
+        return JSONResponse(content={"prescription": extracted})
+
+    except Exception as e:
+        return JSONResponse(content={"error": str(e)}, status_code=500)
+def process_prescription_with_mistral(ocr_text):
+    prompt = f"""You are a medical assistant. Extract all prescribed medicines from the text below.
+Return a JSON list. Each item should contain:
+- "Medicine"
+- "Dosage"
+- "Frequency"
+- "Duration"
+
+TEXT:
+{ocr_text}
+"""
+
+    result = subprocess.run(
+        ["ollama", "run", "mistral"],
+        input=prompt.encode(),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=240
+    )
+
+    try:
+        output = result.stdout.decode().strip()
+        if "```json" in output:
+            output = output.split("```json")[1].split("```")[0].strip()
+        return json.loads(output)
+    except Exception as e:
+        return [{"error": "AI parsing failed", "details": str(e), "raw_output": output}]
