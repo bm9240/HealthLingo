@@ -9,7 +9,7 @@ def generate_explanation(test, result, status):
     )
     try:
         result = subprocess.run(
-            [r"C:\Users\Anishka\AppData\Local\Programs\Ollama\ollama.exe", "run", "mistral"],
+            ["ollama", "run", "mistral"],
             input=prompt.encode(),
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
